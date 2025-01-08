@@ -3,6 +3,7 @@ const express = require('express');
 const morgan = require('morgan');
 const connectToDB = require('./config/db');
 const colors = require('colors');
+const errorHandler = require('./middleware/error');
 
 // Load env vars
 dotenv.config({path: './config/config.env'});
@@ -39,6 +40,7 @@ app.use(logger); // Own middleware for logger
 
 // Mount Routers
 app.use('/api/v1/bootcamps', bootcamps);
+app.use(errorHandler)
 
 
 const server = app.listen(PORT, ()=> {
