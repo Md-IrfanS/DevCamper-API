@@ -3,13 +3,86 @@ const geocoder = require('../utils/geocoder');
 const BootcampModel = require('../models/Bootcamp.model');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler =require('../middleware/async');
+const { getPaginatedData } = require('../utils/paginate');
 
 // @desc    GET all bootcamps
 // @route   GET /api/v1/bootcamps
 // @access  Public
-module.exports.getBootcamps = asyncHandler(async (req, res, next) =>{    
-    const bootcamps = await BootcampModel.find({});
-    return sendResponse(res, 200, "Show all bootcamps", {count: bootcamps.length, data: bootcamps});            
+module.exports.getBootcamps = asyncHandler(async (req, res, next) =>{  
+    let query;   
+    
+    // Copy req.query
+    const reqQuery = {...req.query};
+    
+    // Fields to exclude
+    const removeFields = ['select','sort','page','limit'];
+
+    // Loop over removeFields and delete them from reqQuery
+    removeFields.forEach((parm)=> delete reqQuery[parm]);        
+
+    // Convert query parameters to a JSON string    
+    let queryStr = JSON.stringify(reqQuery);
+
+    // Replace query operators ($gte, $gte ect);
+    queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, (match) => `$${match}`);    
+        
+    // Parse the modified string back to an object
+    let queryObj = JSON.parse(queryStr);
+    
+    // Execute the query
+    query = BootcampModel.find(queryObj);
+
+    // Select fields
+    if (req.query.select) {
+        const fields = req.query.select.split(',').join(" ");
+        query = query.select(fields);        
+    }    
+    if (req.query.sort) {
+        const sortBy = req.query.sort.split(',').join("");        
+        query = query.sort(sortBy);
+    }else{
+        query =query.sort('-createAt');
+    }
+
+    // Pagination
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 25;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    const total = await BootcampModel.countDocuments();
+
+
+    query = query.skip(startIndex).limit(limit);
+
+
+    // Example
+    const paginationDetails = await getPaginatedData(BootcampModel, { location: "Boston" }, { page: 2, limit: 5 });
+    console.log(paginationDetails);
+
+    const bootcamps = await query;
+
+    // Pagination result 
+    const pagination = {    
+        totalPages: total,
+        limit: limit,
+        currentPage: page    
+    };
+    if (endIndex < total) {
+        pagination.next = {
+            page: page + 1,
+            limit,
+        }
+    }
+
+    if (startIndex > 0) {
+        pagination.prev = {
+            page: page - 1,
+            limit
+        }
+    }
+
+    // Send the response
+    return sendResponse(res, 200, "Show all bootcamps", {count: bootcamps.length, pagination: paginationDetails.pagination, data: bootcamps});            
 });
 
 // @desc    GET single bootcamp
