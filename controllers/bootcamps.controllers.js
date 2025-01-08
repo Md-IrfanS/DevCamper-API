@@ -8,9 +8,7 @@ const asyncHandler =require('../middleware/async');
 // @access  Public
 module.exports.getBootcamps = asyncHandler(async (req, res, next) =>{    
     const bootcamps = await BootcampModel.find({});
-    const filterSince = await BootcampModel.aggregate([{ $match: { since: { $gte: 2000 }}}]).sort({'since': 1});        
-    
-    return sendResponse(res, 200, "Show all bootcamps", {count: bootcamps.length, data: bootcamps, filterData: filterSince});            
+    return sendResponse(res, 200, "Show all bootcamps", {count: bootcamps.length, data: bootcamps});            
 });
 
 // @desc    GET single bootcamp
