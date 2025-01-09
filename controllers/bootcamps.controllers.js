@@ -4,6 +4,7 @@ const BootcampModel = require('../models/Bootcamp.model');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler =require('../middleware/async');
 const { getPaginatedData } = require('../utils/paginate');
+const CourseModel = require("../models/Course.model");
 
 // @desc    GET all bootcamps
 // @route   GET /api/v1/bootcamps
@@ -30,7 +31,7 @@ module.exports.getBootcamps = asyncHandler(async (req, res, next) =>{
     let queryObj = JSON.parse(queryStr);
     
     // Execute the query
-    query = BootcampModel.find(queryObj).populate({path: 'courses', select: 'title description'});
+    query = BootcampModel.find(queryObj).populate({path: 'courses', select: 'title description tuition'});
 
     // Select fields
     if (req.query.select) {
@@ -90,7 +91,7 @@ module.exports.getBootcamps = asyncHandler(async (req, res, next) =>{
 // @access  Public
 
 module.exports.getBootcamp = asyncHandler(async (req, res, next) =>{    
-    const bootcamp = await BootcampModel.findById(req.params.id).populate({path: 'courses', select: 'title description' });        
+    const bootcamp = await BootcampModel.findById(req.params.id).populate({path: 'courses', select: 'title description tuition' });        
             
     if (!bootcamp) {
         return next(new ErrorResponse(`Bootcamp not found with id of ${req.params.id}`,404))
@@ -147,8 +148,20 @@ module.exports.deleteBootcamp = asyncHandler(async (req, res, next) => {
 // @route   DELETE /api/v1/bootcamps/all
 // @access  Private
 
-module.exports.allDeleteBootcamp = asyncHandler(async (req, res, next) => {
-    console.log(req);
+module.exports.allDeleteBootcamp = asyncHandler(async (req, res, next) => {    
+    const bootcamps = await BootcampModel.find({});
+    
+    if (!bootcamps || bootcamps.length == 0) {
+        return sendResponse(res, 404, `No bootcamps found to delete`);
+    }
+    
+    // Delete related courses for each bootcamp
+    const bootcampsId = bootcamps.map((bootcamp) => bootcamp._id);
+
+    // Delete all related courses
+    await CourseModel.deleteMany({bootcamp: { $in: bootcampsId }});
+
+    // Delete all bootcamps
     const deleteAll = await BootcampModel.deleteMany({});
     
     return sendResponse(res, 200, `Deleted all bootcamps`, { deletedData: deleteAll });

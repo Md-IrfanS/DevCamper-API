@@ -94,7 +94,12 @@ module.exports.deleteCourse = asyncHandler(async (req, res, next)=> {
         return next(new ErrorResponse(`No course with id of ${req.params.courseId}`,404))
     }
 
+    const bootcampId = course.bootcamp; // Capture the associated bootcamp ID
+    
     await course.deleteOne();
 
-    return sendResponse(res, 200, 'delete Course', {data: {}});
+    // Update the average cost for the associated bootcamp
+    await CourseModel.getAverageCost(bootcampId);
+
+    return sendResponse(res, 200, 'Delete course', {data: {}});
 });
