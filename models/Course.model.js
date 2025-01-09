@@ -45,11 +45,11 @@ CourseSchema.statics.getAverageCost = async function(bootcampId){
         {
             $group: {
                 _id: '$bootcamp',
-                averageCost: {$avg: '$tuition'}
+                averageCost: { $avg: '$tuition' }
             }
         }
     ])
-    console.log(result);
+    
     try{
         const averageCost = result.length > 0 ? Math.ceil(result[0].averageCost / 10) * 10 : 0;
         
@@ -74,8 +74,7 @@ CourseSchema.post('save', async function(doc, next){
 
 // Call getAverageCost before remove
 CourseSchema.pre('deleteOne',{ document: true, query: false }, async function(next){
-    try {
-        console.log('Called pre-delete hook');
+    try {    
 
         // Ensure that the bootcamp ID is available before calculating the average cost
         const course = this; // Access the current document

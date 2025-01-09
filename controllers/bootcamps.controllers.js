@@ -1,4 +1,5 @@
-const { sendResponse, errorResponse } = require("../utils/response");
+const path = require('path');
+const { sendResponse } = require("../utils/response");
 const geocoder = require('../utils/geocoder');
 const BootcampModel = require('../models/Bootcamp.model');
 const ErrorResponse = require('../utils/errorResponse');
@@ -187,4 +188,59 @@ module.exports.getBootcampsInRadius = asyncHandler(async (req, res, next) => {
     const bootcamps = await BootcampModel.find({location: {$geoWithin: {$centerSphere: [[lng, lat], radius]}}});
 
     return sendResponse(res, 200, `Filter by Based on radius and distance bootcamps`, {count: bootcamps.length, data: bootcamps });
+});
+
+
+// @desc    Upload photo
+// @route   PUT /api/v1/bootcamps/:bootcampId/photo
+// @access  Private
+
+module.exports.bootcampPhotoUpload = asyncHandler(async (req, res, next) => {        
+    const bootcamp = await BootcampModel.findById(req.params.bootcampId);
+   
+    if (!bootcamp) {
+        return next(new ErrorResponse(`Bootcamp not found with id of ${req.params.bootcampId}`,404));
+    }
+    
+    if (!req.files) {
+        return next(new ErrorResponse(`Please upload a file`,404));
+    }
+    
+    const file = req.files.files;
+        
+     // Ensure the file is an image
+    if (!file?.mimetype?.startsWith('image')) {        
+        return next(new ErrorResponse(`Please upload an image file`,404));
+    }
+
+    // Check file size
+    if (file.size > process.env.MAX_FILE_UPLOAD) {
+        return next(new ErrorResponse(`Please upload an image less than ${process.env.MAX_FILE_UPLOAD}`,404));    
+    }
+
+    // Create custom filename
+    file.name = `Photo_${bootcamp._id}${path.parse(file.name).ext}`; // Add the file extension dynamically
+    console.log(file);
+    
+     // Move the file to the server's public folder
+     const uploadPath = path.join(__dirname, './uploads/', file.name);
+
+     try {
+        file.mv(uploadPath, async (err) => {
+            if (err) {
+                console.error('File upload error:', err); // Log error
+                return next(new ErrorResponse('Problem with file upload', 500));
+            }
+    
+            await BootcampModel.findByIdAndUpdate(req.params.bootcampId, { photo: file.name });
+    
+            res.status(200).json({
+                success: true,
+                data: file.name,
+            });
+        });
+    } catch (err) {
+        console.error('Unexpected error:', err);
+        return next(new ErrorResponse('Unexpected error occurred', 500));
+    } 
 });

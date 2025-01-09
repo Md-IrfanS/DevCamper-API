@@ -1,9 +1,11 @@
+const path = require('path');
 const dotenv = require('dotenv');
 const express = require('express');
 const morgan = require('morgan');
 const connectToDB = require('./config/db');
 const colors = require('colors');
 const errorHandler = require('./middleware/error');
+const fileUpload = require('express-fileupload');
 
 // Load env vars
 dotenv.config({path: './config/config.env'});
@@ -37,7 +39,16 @@ if (process.env.NODE_ENV == "development") {
  app.use(morgan('dev'));   
 }
 
+
+
+
 app.use(logger); // Own middleware for logger
+
+// File Uploading
+app.use(fileUpload());
+
+// Serve static files from 'public' directory
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // Mount Routers
 app.use('/api/v1/bootcamps', bootcamps);
