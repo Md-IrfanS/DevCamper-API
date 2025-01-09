@@ -16,6 +16,7 @@ const logger = require('./middleware/logger');
 
 // Route Files
 const bootcamps = require('./routes/bootcamps.routes');
+const coursers = require('./routes/courses.routes');
 
 
 
@@ -40,6 +41,7 @@ app.use(logger); // Own middleware for logger
 
 // Mount Routers
 app.use('/api/v1/bootcamps', bootcamps);
+app.use('/api/v1/courses', coursers);
 app.use(errorHandler)
 
 
