@@ -90,7 +90,7 @@ module.exports.getBootcamps = asyncHandler(async (req, res, next) =>{
 // @access  Public
 
 module.exports.getBootcamp = asyncHandler(async (req, res, next) =>{    
-    const bootcamp = await BootcampModel.findById(req.params.id);        
+    const bootcamp = await BootcampModel.findById(req.params.id).populate({path: 'courses', select: 'title description' });        
             
     if (!bootcamp) {
         return next(new ErrorResponse(`Bootcamp not found with id of ${req.params.id}`,404))
