@@ -23,3 +23,78 @@ module.exports.getCourses = asyncHandler(async (req, res, next)=> {
     const courses = await query;
     return sendResponse(res, 200, 'All Courses', {count: courses.length, data: courses});
 });
+
+// @des     Get Course
+// @route   GET /api/v1/courses/:courseId
+// @access  Public
+
+module.exports.getCourse = asyncHandler(async (req, res, next)=> {    
+    const course = await CourseModel.findById(req.params.courseId).populate({
+        path: 'bootcamp',
+        select: 'name description careers'
+    });
+
+    if (!course) {
+        return next(new ErrorResponse(`Course not found with id of ${req.params.courseId}`,404))
+    }    
+
+    return sendResponse(res, 200, 'All Courses', {data: course});
+});
+
+
+// @des     Add Course
+// @route   POST /api/v1/bootcamps/:bootcampId/courses
+// @access  Private
+
+module.exports.addCourse = asyncHandler(async (req, res, next)=> {    
+    req.body.bootcamp = req.params.bootcampId;
+
+    const bootcamp = await BootcampModel.findById(req.params.bootcampId);
+
+    if (!bootcamp) {
+        return next(new ErrorResponse(`No bootcamp with id of ${req.params.bootcampId}`,404))
+    }
+
+    const newCourse = await CourseModel.create(req.body);    
+
+    return sendResponse(res, 200, 'New Course', {data: newCourse});
+});
+
+
+// @des     Update Course
+// @route   PUT /api/v1/course/:courseId
+// @access  Private
+
+module.exports.updateCourse = asyncHandler(async (req, res, next)=> {    
+
+    let course = await CourseModel.findById(req.params.courseId);
+
+    if (!course) {
+        return next(new ErrorResponse(`No course with id of ${req.params.courseId}`,404))
+    }
+
+    course = await CourseModel.findByIdAndUpdate(req.params.courseId, req.body, {
+        new: true,
+        runValidators: true
+    });
+
+    return sendResponse(res, 200, 'update Course', {data: course});
+});
+
+
+// @des     Delete Course
+// @route   DELETE /api/v1/course/:courseId
+// @access  Private
+
+module.exports.deleteCourse = asyncHandler(async (req, res, next)=> {    
+
+    const course = await CourseModel.findById(req.params.courseId);
+
+    if (!course) {
+        return next(new ErrorResponse(`No course with id of ${req.params.courseId}`,404))
+    }
+
+    await course.deleteOne();
+
+    return sendResponse(res, 200, 'delete Course', {data: {}});
+});
