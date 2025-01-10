@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const mime = require('mime-types');
 const { sendResponse } = require("../utils/response");
 const geocoder = require('../utils/geocoder');
 const BootcampModel = require('../models/Bootcamp.model');
@@ -7,6 +8,8 @@ const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler =require('../middleware/async');
 const { getPaginatedData } = require('../utils/paginate');
 const CourseModel = require("../models/Course.model");
+const { v4: uuidv4 } = require('uuid'); // Import uuid to generate unique IDs
+const { allowedMimeTypes, isAllowedMimeType, getFolderByMimeType } = require('../utils/projectconstant');
 
 // @desc    GET all bootcamps
 // @route   GET /api/v1/bootcamps
@@ -209,27 +212,7 @@ module.exports.bootcampPhotoUpload = asyncHandler(async (req, res, next) => {
             return next(new ErrorResponse('Please upload a file', 400));
         }
 
-        const file = req.files.file;
-
-        // Allowed MIME types and folder mappings
-        const allowedMimeTypes = [
-            { mimeType: 'image/jpeg', folder: 'images', description: 'JPEG image (jpg, jpeg)' },
-            { mimeType: 'image/png', folder: 'images', description: 'PNG image (png)' },
-            { mimeType: 'application/pdf', folder: 'documents', description: 'PDF document (pdf)' },
-            { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', folder: 'excel', description: 'Excel spreadsheet (xlsx)' },
-            { mimeType: 'application/vnd.ms-excel', folder: 'excel', description: 'Excel spreadsheet (xls)' },
-            { mimeType: 'application/msword', folder: 'documents', description: 'Word document (doc)' },
-            { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', folder: 'documents', description: 'Word document (docx)' }
-        ];
-
-        // Helper: Get folder based on MIME type
-        const getFolderByMimeType = (mimeType) => {
-            const type = allowedMimeTypes.find(item => item.mimeType === mimeType);
-            return type ? type.folder : null;
-        };
-
-        // Helper: Check if MIME type is allowed
-        const isAllowedMimeType = (mimeType) => allowedMimeTypes.some(item => item.mimeType === mimeType);
+        const file = req.files.file;        
 
         // Validate MIME type
         if (!isAllowedMimeType(file.mimetype)) {
@@ -278,3 +261,226 @@ module.exports.bootcampPhotoUpload = asyncHandler(async (req, res, next) => {
         return next(new ErrorResponse('Unexpected error occurred', 500));
     }
 });
+
+
+// @desc    Remove photo
+// @route   DELETE /api/v1/bootcamps/:bootcampId/photo
+// @access  Private
+
+module.exports.deleteBootcampPhoto = asyncHandler(async (req, res, next) => {
+    try {
+        const bootcamp = await BootcampModel.findById(req.params.bootcampId);
+
+        if (!bootcamp) {
+            return next(new ErrorResponse(`Bootcamp not found with ID ${req.params.bootcampId}`, 404));
+        }
+
+        // Find the file to be deleted by unique ID
+        const fileToDelete = bootcamp.photo;
+        if (!bootcamp.phone) {
+            bootcamp.phone = ""
+        }
+                             
+        // Determine the MIME type based on the file name
+        const mimeType = mime.lookup(fileToDelete);
+
+        
+
+
+        // Find the corresponding folder for the MIME type
+        const folderMapping = allowedMimeTypes.find(item => item.mimeType === mimeType);        
+        if (!folderMapping) {
+            return next(new ErrorResponse('Unsupported file type', 400));
+        }
+
+        // Construct the file path and normalize it
+        const filePath = path.normalize(path.join(__dirname, process.env.FILE_UPLOAD_PATH, folderMapping.folder, fileToDelete));
+        console.log('__dirname:', __dirname);
+        console.log('FILE_UPLOAD_PATH:', process.env.FILE_UPLOAD_PATH);
+        console.log('File Name:', fileToDelete.fileName);
+        console.log('Complete file path:', filePath);  // Log full path for troubleshooting
+
+        try {
+            // Check if the file exists and delete
+            await fs.promises.access(filePath);
+            await fs.promises.unlink(filePath);  // Delete the file
+            console.log(`File deleted at path: ${filePath}`);
+        } catch (err) {
+            return next(new ErrorResponse(`File not found at path: ${filePath}`, 404));
+        }
+
+        // Remove the file entry from the photo array in the bootcamp document
+        await BootcampModel.findByIdAndUpdate(req.params.bootcampId, {
+            photo: ""
+        }, { new: true }); // Return the updated bootcamp document
+
+        res.status(200).json({
+            success: true,
+            message: 'File deleted successfully',
+        });
+
+    } catch (error) {
+        console.error('Unexpected error:', error.message || error);
+        return next(new ErrorResponse('Unexpected error occurred', 500));
+    }
+});
+
+// @desc    Upload doc
+// @route   PUT /api/v1/bootcamps/:bootcampId/docupload
+// @access  Private
+
+module.exports.bootcampDocUpload = asyncHandler(async (req, res, next) => {        
+    try {
+        // Check if bootcamp ID exists
+        const bootcamp = await BootcampModel.findById(req.params.bootcampId);
+        if (!bootcamp) {
+            return next(new ErrorResponse(`Bootcamp not found with ID ${req.params.bootcampId}`, 404));
+        }
+
+        // Check if a file is uploaded
+        if (!req.files || !req.files.file) {
+            return next(new ErrorResponse('Please upload a file', 400));
+        }
+        
+
+        const files = Array.isArray(req.files.file) ? req.files.file : [req.files.file];
+                
+        // Allowed MIME types and folder mappings
+        const allowedMimeTypes = [
+            { mimeType: 'image/jpeg', folder: 'images', description: 'JPEG image (jpg, jpeg)' },
+            { mimeType: 'image/png', folder: 'images', description: 'PNG image (png)' },
+            { mimeType: 'application/pdf', folder: 'documents', description: 'PDF document (pdf)' },
+            { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', folder: 'excel', description: 'Excel spreadsheet (xlsx)' },
+            { mimeType: 'application/vnd.ms-excel', folder: 'excel', description: 'Excel spreadsheet (xls)' },
+            { mimeType: 'application/msword', folder: 'documents', description: 'Word document (doc)' },
+            { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', folder: 'documents', description: 'Word document (docx)' }
+        ];
+                
+        const fileDetails = []; // Array to store file details with unique ID
+
+        // Iterate over all uploaded files
+        for(const file of files){
+            // Check if MIME type is allowed
+            const fileType = allowedMimeTypes.find(type => type.mimeType === file.mimetype);
+            if (!fileType) {
+                return next(new ErrorResponse(`Unsupported file type: ${file.mimetype}`, 400));
+            }
+
+            // Check file size
+            const MAX_FILE_SIZE = process.env.MAX_FILE_UPLOAD * 1024 * 1024;
+            if (file.size > MAX_FILE_SIZE) {
+                return next(new ErrorResponse(`File size exceeds the ${process.env.MAX_FILE_UPLOAD}MB limit`, 400));
+            }
+
+            // Create folder path based on file type
+            const folder = fileType.folder || 'others';
+            const uploadDir = path.join(__dirname, process.env.FILE_UPLOAD_PATH, folder);
+            const uniqueId = uuidv4(); // Generate unique ID for the file
+            const fileName = `${bootcamp._id}_${uniqueId}_${file.name}`; // Append unique ID to file name
+            const uploadPath = path.join(uploadDir, fileName);            
+
+            // Ensure the upload directory exists
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+            }
+
+            // Use Promise to handle file upload asynchronously
+            await file.mv(uploadPath, async (err) => {
+                if (err) {
+                    console.error('File upload error:', err.message || err);
+                    return next(new ErrorResponse('Problem with file upload', 500));
+                }
+            })
+            
+            // Store file details with the unique ID
+            fileDetails.push({
+                fileName,
+                fileSize: file.size,
+                fileType: fileType.mimeType,
+                url: fileName,
+            });
+        }
+        
+        await BootcampModel.findByIdAndUpdate(req.params.bootcampId,  { $push: { uploadDoc: { $each: fileDetails } } },{new: true});
+
+        // Return response with uploaded file information
+        res.status(200).json({
+            success: true,
+            data: fileDetails, // Return uploaded file info with unique IDs
+        });
+
+    } catch (err) {
+        console.error('Unexpected error:', err.message || err);
+        return next(new ErrorResponse('Unexpected error occurred', 500));
+    }
+});
+
+
+
+// @desc    Remove upload
+// @route   DELETE /api/v1/bootcamps/:bootcampId/uploaddoc/:docId
+// @access  Private
+
+module.exports.deleteBootcampUploadDoc = asyncHandler(async (req, res, next) => {
+    try {
+        const bootcamp = await BootcampModel.findById(req.params.bootcampId);
+
+        if (!bootcamp) {
+            return next(new ErrorResponse(`Bootcamp not found with ID ${req.params.bootcampId}`, 404));
+        }
+
+        // Find the file to be deleted by unique ID
+        const fileToDelete = bootcamp.uploadDoc.find(file => String(file._id) === req.params.docId);
+        
+        if (!fileToDelete) {
+            return next(new ErrorResponse('File not found', 404));
+        }
+
+         // Get MIME type of the file (assuming it's stored in the file object)
+         const fileType = fileToDelete.fileType;
+         const allowedMimeTypes = [
+            { mimeType: 'image/jpeg', folder: 'images', description: 'JPEG image (jpg, jpeg)' },
+            { mimeType: 'image/png', folder: 'images', description: 'PNG image (png)' },
+            { mimeType: 'application/pdf', folder: 'documents', description: 'PDF document (pdf)' },
+            { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', folder: 'excel', description: 'Excel spreadsheet (xlsx)' },
+            { mimeType: 'application/vnd.ms-excel', folder: 'excel', description: 'Excel spreadsheet (xls)' },
+            { mimeType: 'application/msword', folder: 'documents', description: 'Word document (doc)' },
+            { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', folder: 'documents', description: 'Word document (docx)' }
+        ];
+
+
+        // Find the corresponding folder for the MIME type
+        const folderMapping = allowedMimeTypes.find(item => item.mimeType === fileType);
+        
+        if (!folderMapping) {
+            return next(new ErrorResponse('Unsupported file type', 400));
+        }
+
+        // Construct the file path and normalize it
+        const filePath = path.normalize(path.join(__dirname, process.env.FILE_UPLOAD_PATH, folderMapping.folder, fileToDelete.fileName));        
+
+        try {
+            // Check if the file exists and delete
+            await fs.promises.access(filePath);
+            await fs.promises.unlink(filePath);  // Delete the file            
+        } catch (err) {
+            return next(new ErrorResponse(`File not found at path: ${filePath}`, 404));
+        }
+
+        // Remove the file entry from the photo array in the bootcamp document
+        await BootcampModel.findByIdAndUpdate(req.params.bootcampId, {
+            $pull: { uploadDoc: { _id: req.params.docId } }
+        }, { new: true }); // Return the updated bootcamp document
+
+        res.status(200).json({
+            success: true,
+            message: 'File deleted successfully',
+        });
+
+    } catch (error) {
+        console.error('Unexpected error:', error.message || error);
+        return next(new ErrorResponse('Unexpected error occurred', 500));
+    }
+});
+
+

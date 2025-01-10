@@ -9,6 +9,9 @@ const {
   allDeleteBootcamp,
   getBootcampsInRadius,
   bootcampPhotoUpload,
+  deleteBootcampPhoto,
+  bootcampDocUpload,
+  deleteBootcampUploadDoc,
 } = require("../controllers/bootcamps.controllers");
 
 // Include other resource router
@@ -30,7 +33,13 @@ router
   .put(updateBootcamp)
   .delete(deleteBootcamp);
 
-router.route('/:bootcampId/photo').put(bootcampPhotoUpload)
+router.route('/:bootcampId/photo').put(bootcampPhotoUpload);
+
+router.route('/:bootcampId/photo').delete(deleteBootcampPhoto);
+
+router.route('/:bootcampId/uploaddoc').put(bootcampDocUpload);
+
+router.route('/:bootcampId/uploaddoc/:docId').delete(deleteBootcampUploadDoc);
 
 
 router.get('/radius/:zipcode/:distance', getBootcampsInRadius);

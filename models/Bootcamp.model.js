@@ -77,6 +77,26 @@ const BootcampSchema = new mongoose.Schema({
         type: String,
         default: "no-photo.jpg"
     },
+    uploadDoc: [
+        {           
+            fileName: {
+                type: String,
+                required: true
+            },
+            fileSize: {
+                type: Number,
+                required: true
+            },   
+            fileType: {
+                type: String,
+                required: true
+            },
+            url: {
+                type: String,
+                required: true
+            }                 
+        }
+    ],
     housing: {
         type: Boolean,
         default: false,
