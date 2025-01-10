@@ -14,6 +14,9 @@ const {
   deleteBootcampUploadDoc,
 } = require("../controllers/bootcamps.controllers");
 
+const advancedResults = require('../middleware/advancedResults');
+const BootcampModel = require('../models/Bootcamp.model');
+
 // Include other resource router
 const courseRouter = require('./courses.routes');
 
@@ -21,7 +24,7 @@ const courseRouter = require('./courses.routes');
 
 router.use('/:bootcampId/courses', courseRouter);
 
-router.route("/").get(getBootcamps).post(createBootcamp);
+router.route("/").get(advancedResults(BootcampModel, {path: 'courses', select: 'title description tuition'}),getBootcamps).post(createBootcamp);
 
 // Static routes first
 router.route('/allDelete').delete(allDeleteBootcamp);
@@ -29,7 +32,7 @@ router.route('/allDelete').delete(allDeleteBootcamp);
 // Dynamic routes after static routes
 router
   .route("/:id")
-  .get(getBootcamp)
+  .get(advancedResults(BootcampModel, {path: 'courses', select: 'title description tuition'}) , getBootcamp)
   .put(updateBootcamp)
   .delete(deleteBootcamp);
 
