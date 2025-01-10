@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const { sendResponse } = require("../utils/response");
 const geocoder = require('../utils/geocoder');
 const BootcampModel = require('../models/Bootcamp.model');
@@ -196,51 +197,84 @@ module.exports.getBootcampsInRadius = asyncHandler(async (req, res, next) => {
 // @access  Private
 
 module.exports.bootcampPhotoUpload = asyncHandler(async (req, res, next) => {        
-    const bootcamp = await BootcampModel.findById(req.params.bootcampId);
-   
-    if (!bootcamp) {
-        return next(new ErrorResponse(`Bootcamp not found with id of ${req.params.bootcampId}`,404));
-    }
-    
-    if (!req.files) {
-        return next(new ErrorResponse(`Please upload a file`,404));
-    }
-    
-    const file = req.files.files;
-        
-     // Ensure the file is an image
-    if (!file?.mimetype?.startsWith('image')) {        
-        return next(new ErrorResponse(`Please upload an image file`,404));
-    }
+    try {
+        // Check if bootcamp ID exists
+        const bootcamp = await BootcampModel.findById(req.params.bootcampId);
+        if (!bootcamp) {
+            return next(new ErrorResponse(`Bootcamp not found with ID ${req.params.bootcampId}`, 404));
+        }
 
-    // Check file size
-    if (file.size > process.env.MAX_FILE_UPLOAD) {
-        return next(new ErrorResponse(`Please upload an image less than ${process.env.MAX_FILE_UPLOAD}`,404));    
-    }
+        // Check if a file is uploaded
+        if (!req.files || !req.files.file) {
+            return next(new ErrorResponse('Please upload a file', 400));
+        }
 
-    // Create custom filename
-    file.name = `Photo_${bootcamp._id}${path.parse(file.name).ext}`; // Add the file extension dynamically
-    console.log(file);
-    
-     // Move the file to the server's public folder
-     const uploadPath = path.join(__dirname, './uploads/', file.name);
+        const file = req.files.file;
 
-     try {
+        // Allowed MIME types and folder mappings
+        const allowedMimeTypes = [
+            { mimeType: 'image/jpeg', folder: 'images', description: 'JPEG image (jpg, jpeg)' },
+            { mimeType: 'image/png', folder: 'images', description: 'PNG image (png)' },
+            { mimeType: 'application/pdf', folder: 'documents', description: 'PDF document (pdf)' },
+            { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', folder: 'excel', description: 'Excel spreadsheet (xlsx)' },
+            { mimeType: 'application/vnd.ms-excel', folder: 'excel', description: 'Excel spreadsheet (xls)' },
+            { mimeType: 'application/msword', folder: 'documents', description: 'Word document (doc)' },
+            { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', folder: 'documents', description: 'Word document (docx)' }
+        ];
+
+        // Helper: Get folder based on MIME type
+        const getFolderByMimeType = (mimeType) => {
+            const type = allowedMimeTypes.find(item => item.mimeType === mimeType);
+            return type ? type.folder : null;
+        };
+
+        // Helper: Check if MIME type is allowed
+        const isAllowedMimeType = (mimeType) => allowedMimeTypes.some(item => item.mimeType === mimeType);
+
+        // Validate MIME type
+        if (!isAllowedMimeType(file.mimetype)) {
+            return next(new ErrorResponse('Unsupported file type', 400));
+        }       
+
+        // Validate file size (5MB limit)
+        const MAX_FILE_SIZE = process.env.MAX_FILE_UPLOAD * 1024 * 1024; // 5MB
+        if (file.size > MAX_FILE_SIZE) {
+            return next(new ErrorResponse(`File size exceeds the ${MAX_FILE_SIZE}MB limit`, 400));
+        }
+
+        // Get folder based on file type
+        const folder = getFolderByMimeType(file.mimetype);
+        if (!folder) {
+            return next(new ErrorResponse('Unsupported file type', 400));
+        }
+
+        // Build upload directory and path
+        const uploadDir = path.join(__dirname, process.env.FILE_UPLOAD_PATH, folder);
+        const fileName = `${bootcamp._id}_${Date.now()}_${file.name}`;
+        const uploadPath = path.join(uploadDir, fileName);
+
+        // Ensure the upload directory exists
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        // Move file to the upload directory
         file.mv(uploadPath, async (err) => {
             if (err) {
-                console.error('File upload error:', err); // Log error
+                console.error('File upload error:', err.message || err);
                 return next(new ErrorResponse('Problem with file upload', 500));
             }
-    
-            await BootcampModel.findByIdAndUpdate(req.params.bootcampId, { photo: file.name });
-    
+
+            // Update the bootcamp record with the uploaded file name
+            await BootcampModel.findByIdAndUpdate(req.params.bootcampId, { photo: fileName });
+
             res.status(200).json({
                 success: true,
-                data: file.name,
+                data: fileName,
             });
         });
     } catch (err) {
-        console.error('Unexpected error:', err);
+        console.error('Unexpected error:', err.message || err);
         return next(new ErrorResponse('Unexpected error occurred', 500));
-    } 
+    }
 });

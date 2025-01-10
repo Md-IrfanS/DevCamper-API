@@ -45,7 +45,10 @@ if (process.env.NODE_ENV == "development") {
 app.use(logger); // Own middleware for logger
 
 // File Uploading
-app.use(fileUpload());
+// Set file size limit to 5MB globally
+app.use(fileUpload({
+    limits: { fileSize: process.env.MAX_FILE_UPLOAD * 1024 * 1024 },
+}));
 
 // Serve static files from 'public' directory
 app.use('/public', express.static(path.join(__dirname, 'public')));
