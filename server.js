@@ -1,9 +1,11 @@
+const path = require('path');
 const dotenv = require('dotenv');
 const express = require('express');
 const morgan = require('morgan');
 const connectToDB = require('./config/db');
 const colors = require('colors');
 const errorHandler = require('./middleware/error');
+const fileUpload = require('express-fileupload');
 
 // Load env vars
 dotenv.config({path: './config/config.env'});
@@ -16,6 +18,7 @@ const logger = require('./middleware/logger');
 
 // Route Files
 const bootcamps = require('./routes/bootcamps.routes');
+const coursers = require('./routes/courses.routes');
 
 
 
@@ -36,10 +39,23 @@ if (process.env.NODE_ENV == "development") {
  app.use(morgan('dev'));   
 }
 
+
+
+
 app.use(logger); // Own middleware for logger
+
+// File Uploading
+// Set file size limit to 5MB globally
+app.use(fileUpload({
+    limits: { fileSize: process.env.MAX_FILE_UPLOAD * 1024 * 1024 },
+}));
+
+// Serve static files from 'public' directory
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // Mount Routers
 app.use('/api/v1/bootcamps', bootcamps);
+app.use('/api/v1/courses', coursers);
 app.use(errorHandler)
 
 
