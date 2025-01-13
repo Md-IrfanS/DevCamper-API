@@ -12,10 +12,12 @@ const {
   deleteBootcampPhoto,
   bootcampDocUpload,
   deleteBootcampUploadDoc,
+  getAllBootcampsByUser,
 } = require("../controllers/bootcamps.controllers");
 
 const advancedResults = require('../middleware/advancedResults');
 const BootcampModel = require('../models/Bootcamp.model');
+const { protect, authorize } = require('../middleware/auth');
 
 // Include other resource router
 const courseRouter = require('./courses.routes');
@@ -24,26 +26,30 @@ const courseRouter = require('./courses.routes');
 
 router.use('/:bootcampId/courses', courseRouter);
 
-router.route("/").get(advancedResults(BootcampModel, {path: 'courses', select: 'title description tuition'}),getBootcamps).post(createBootcamp);
+router.route("/").get(advancedResults(BootcampModel, {path: 'courses', select: 'title description tuition'}), getBootcamps).post(protect, authorize('publisher','admin'), createBootcamp);
 
 // Static routes first
-router.route('/allDelete').delete(allDeleteBootcamp);
+router.route('/allDelete').delete(protect, allDeleteBootcamp);
+router.route('/user').get(protect, authorize('publisher','admin'), getAllBootcampsByUser)
 
 // Dynamic routes after static routes
 router
   .route("/:id")
-  .get(advancedResults(BootcampModel, {path: 'courses', select: 'title description tuition'}) , getBootcamp)
-  .put(updateBootcamp)
-  .delete(deleteBootcamp);
+  .get(protect, authorize('publisher','admin'), getBootcamp)
+  .put(protect, authorize('publisher','admin'), updateBootcamp)
+  .delete(protect, authorize('publisher','admin'), deleteBootcamp);
 
-router.route('/:bootcampId/photo').put(bootcampPhotoUpload);
+router.route('/:bootcampId/photo').put(protect, authorize('publisher','admin'), bootcampPhotoUpload);
 
-router.route('/:bootcampId/photo').delete(deleteBootcampPhoto);
+router.route('/:bootcampId/photo').delete(protect, authorize('publisher','admin'), deleteBootcampPhoto);
 
-router.route('/:bootcampId/uploaddoc').put(bootcampDocUpload);
+router.route('/:bootcampId/uploaddoc').put(protect, authorize('publisher','admin'), bootcampDocUpload);
 
-router.route('/:bootcampId/uploaddoc/:docId').delete(deleteBootcampUploadDoc);
+router.route('/:bootcampId/uploaddoc/:docId').delete(protect, authorize('publisher','admin'), deleteBootcampUploadDoc);
+
+router.get('/radius/:zipcode/:distance', protect, authorize('publisher','admin'), getBootcampsInRadius);
 
 
-router.get('/radius/:zipcode/:distance', getBootcampsInRadius);
+
+
 module.exports = router;

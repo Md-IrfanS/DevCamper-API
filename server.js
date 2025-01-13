@@ -19,6 +19,8 @@ const logger = require('./middleware/logger');
 // Route Files
 const bootcamps = require('./routes/bootcamps.routes');
 const coursers = require('./routes/courses.routes');
+const auth = require('./routes/auth.routes');
+const cookieParser = require('cookie-parser');
 
 
 
@@ -28,6 +30,9 @@ const app = express();
 
 // Body parser
 app.use(express.json());
+
+// Cookie parser
+app.use(cookieParser())
 
 
 app.get("/", (req, res)=> {
@@ -56,6 +61,7 @@ app.use('/public', express.static(path.join(__dirname, 'public')));
 // Mount Routers
 app.use('/api/v1/bootcamps', bootcamps);
 app.use('/api/v1/courses', coursers);
+app.use('/api/v1/auth', auth);
 app.use(errorHandler)
 
 
