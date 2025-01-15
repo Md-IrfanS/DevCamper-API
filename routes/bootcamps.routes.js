@@ -21,10 +21,12 @@ const { protect, authorize } = require('../middleware/auth');
 
 // Include other resource router
 const courseRouter = require('./courses.routes');
+const reviewRouter = require('./reviews.routes');
 
 // Re-route into other resource routers
 
 router.use('/:bootcampId/courses', courseRouter);
+router.use('/:bootcampId/reviews', reviewRouter);
 
 router.route("/").get(advancedResults(BootcampModel, {path: 'courses', select: 'title description tuition'}), getBootcamps).post(protect, authorize('publisher','admin'), createBootcamp);
 
