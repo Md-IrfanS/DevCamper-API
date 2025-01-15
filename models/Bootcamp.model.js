@@ -121,6 +121,10 @@ const BootcampSchema = new mongoose.Schema({
         type: mongoose.Schema.ObjectId,
         ref: 'user',
         required: true,
+    },
+    averageRating: {
+        type: Number,
+        default: null, // Default to null when no reviews exist
     }    
 },{ timestamps: true, toJSON: {virtuals: true}, toObject: {virtuals: true}});
 

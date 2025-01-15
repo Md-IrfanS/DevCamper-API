@@ -19,8 +19,10 @@ module.exports.getBootcamps = asyncHandler(async (req, res, next) =>{
     return sendResponse(res, 200, "Show all bootcamps", {count: res.advancedResults.count, pagination: false && paginationDetails.pagination, data: res.advancedResults.data, pagination: res.advancedResults.pagination});            
 });
 
+// Utility function to safely extract and format query parameters
 const queryExtract = (req, type) => {
-    return req.query[type].split(",").join(" ");
+    const queryValue = req.query[type];
+    return queryValue ? queryValue.split(",").join(" ") : ""; // Return empty string if undefined
 };
 
 // @desc    GET single bootcamp
@@ -28,17 +30,34 @@ const queryExtract = (req, type) => {
 // @access  Public
 
 module.exports.getBootcamp = asyncHandler(async (req, res, next) =>{    
-
-
+    
     const select = queryExtract(req, 'select');
     const populate = queryExtract(req, 'courses');
+    
+    // Build the query
+    let query = BootcampModel.findById(req.params.id);
 
-    const bootcamp = await BootcampModel.find({_id: req.params.id, user: req.user.id}).populate({path: 'courses', select: populate }).select(select);    
+    // Apply user-based filtering if `req.user` exists
+    if (req.user) {
+        query = query.find({ user: req.user.id });
+    }
+
+    // Apply the "select" fields if provided
+    if (select) {
+        query = query.select(select);
+    }
+    // Apply population if requested
+    if (populate) {
+        query = query.populate({ path: "courses", select: populate });
+    }
+    // Execute the query
+    const bootcamp = await query;    
     if (!bootcamp) {
         return next(new ErrorResponse(`Bootcamp not found with id of ${req.params.id}`,404))
-    }        
-    
-    return sendResponse(res, 200, `Show bootcamp ${req.params.id}`, bootcamp);    
+    }
+
+    // Send the response
+    return sendResponse(res, 200, `Show bootcamp ${req.params.id}`, bootcamp);
 });
 
 // @desc    create new bootcamp
