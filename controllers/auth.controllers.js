@@ -132,3 +132,48 @@ module.exports.resetPassword = asyncHandler ( async (req, res, next)=> {
     await user.save();    
     sendTokenResponse(res, user, 200, 'Password updated successfully');
 });
+
+
+// @desc    Update user details
+// @route   PUT /api/v1/auth/updatedetails
+// @access  Private
+
+module.exports.updateDetails = asyncHandler ( async (req, res, next)=> {
+    const fieldsToUpdate = {
+        name: req.body.name,
+        email: req.body.email
+    }
+    const user = await UserModel.findByIdAndUpdate(req.user.id, fieldsToUpdate, {
+        new: true,
+        runValidators: true
+    });
+
+    return sendResponse(res, 200, 'User updated details', user)
+});
+
+
+// @desc    Update user details
+// @route   PUT /api/v1/auth/updatepassword
+// @access  Private
+
+module.exports.updatePassword = asyncHandler ( async (req, res, next)=> {    
+    const user = await UserModel.findById(req.user.id).select("+password");
+    if (!user) {
+        return next(new ErrorResponse('Invalid user not found',400));        
+    }
+    const { newPassword, currentPassword } = req.body;
+   // Check if current password matches the one in the database
+    if (!(await user.matchPassword(currentPassword))) {
+        return next(new ErrorResponse('Current password is incorrect', 401));
+    }
+
+    // Check if the new password is different from the current password
+    if (currentPassword === newPassword) {
+        return next(new ErrorResponse('New password must be different from the current password', 400));
+    }
+    
+
+    user.password = newPassword;
+    await user.save();
+    sendTokenResponse(res, user, 200, 'Password updated successfully');
+});
