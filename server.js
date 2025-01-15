@@ -20,6 +20,7 @@ const logger = require('./middleware/logger');
 const bootcamps = require('./routes/bootcamps.routes');
 const coursers = require('./routes/courses.routes');
 const auth = require('./routes/auth.routes');
+const users = require('./routes/users.routes');
 const cookieParser = require('cookie-parser');
 
 
@@ -62,6 +63,7 @@ app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use('/api/v1/bootcamps', bootcamps);
 app.use('/api/v1/courses', coursers);
 app.use('/api/v1/auth', auth);
+app.use('/api/v1/users', users);
 app.use(errorHandler)
 
 
