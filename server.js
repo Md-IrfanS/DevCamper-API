@@ -6,6 +6,12 @@ const connectToDB = require('./config/db');
 const colors = require('colors');
 const errorHandler = require('./middleware/error');
 const fileUpload = require('express-fileupload');
+const mongoSanitize = require('express-mongo-sanitize');
+const helmet = require('helmet');
+const xss = require('xss-clean');
+const rateLimit = require('express-rate-limit');
+const hpp = require('hpp');
+const cors = require('cors');
 
 // Load env vars
 dotenv.config({path: './config/config.env'});
@@ -37,10 +43,6 @@ app.use(express.json());
 app.use(cookieParser())
 
 
-app.get("/", (req, res)=> {
-    res.status(200).json({success: true, data: {id: 1}});
-});
-
 // Dev logging middleware
 if (process.env.NODE_ENV == "development") {
  app.use(morgan('dev'));   
@@ -57,8 +59,37 @@ app.use(fileUpload({
     limits: { fileSize: process.env.MAX_FILE_UPLOAD * 1024 * 1024 },
 }));
 
+
+// Sanitize data
+app.use(mongoSanitize());
+
+// Set security headers
+app.use(helmet());
+
+// Prevent XSS attacks
+app.use(xss());
+
+// Rate limiting
+const limiter =  rateLimit({
+    windowMs: 10 * 60 * 1000, // 10 mins
+    max: 100
+});
+app.use(limiter);
+
+// Prevent http param pollution
+app.use(hpp());
+
+// Enable cors
+app.use(cors());
+
 // Serve static files from 'public' directory
 app.use('/public', express.static(path.join(__dirname, 'public')));
+
+app.get("/", (req, res)=> {
+    res.end()
+    // res.status(200).json({success: true, data: {id: 1}});
+});
+
 
 // Mount Routers
 app.use('/api/v1/bootcamps', bootcamps);
