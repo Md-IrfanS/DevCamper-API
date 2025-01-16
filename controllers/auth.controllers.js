@@ -177,3 +177,17 @@ module.exports.updatePassword = asyncHandler ( async (req, res, next)=> {
     await user.save();
     sendTokenResponse(res, user, 200, 'Password updated successfully');
 });
+
+
+// @desc    Logout
+// @route   POST /api/v1/auth/logout
+// @access  Public
+
+module.exports.logoutUser = asyncHandler(async (req, res, next)=> {
+    res.cookie('token', 'none', {
+        expires: new Date(Date.now() + 10 * 1000),
+        httpOnly: true,
+    });
+    
+    return sendResponse(res, 200, 'Logout Successfully');
+});
